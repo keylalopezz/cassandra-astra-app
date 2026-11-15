@@ -1,0 +1,33 @@
+name: ingesta
+
+# Cada hora las "estaciones" envían una ronda de lecturas a la app publicada.
+# Así la serie de tiempo crece sola y la base serverless no se hiberna.
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+    inputs:
+      rondas:
+        description: 'Rondas de lecturas por estación'
+        default: '1'
+
+jobs:
+  ingesta:
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: https://pulso-tacna.onrender.com
+    steps:
+      - name: Despertar la app (el plan free se suspende)
+        run: |
+          for i in $(seq 1 18); do
+            curl -fsS "$APP_URL/health" && break
+            echo " esperando..."; sleep 10
+          done
+      - name: Enviar lecturas
+        run: |
+          RONDAS="${{ github.event.inputs.rondas || '1' }}"
+          curl -fsS -X POST "$APP_URL/api/simular?rondas=$RONDAS" | tee r.json | jq .
+          echo "### $(jq -r .data r.json) lecturas escritas en Astra DB en $(jq -r .ms r.json) ms" >> "$GITHUB_STEP_SUMMARY"
+      - name: Conteo del día
+        run: |
+          curl -fsS "$APP_URL/api/estaciones" | jq -r '.data[] | "\(.estacion.estacionId): \(.lecturasHoy) lecturas hoy, última \(.ultima.temperatura) °C"' | tee -a "$GITHUB_STEP_SUMMARY"
