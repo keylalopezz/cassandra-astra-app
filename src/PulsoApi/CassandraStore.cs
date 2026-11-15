@@ -163,8 +163,10 @@ public sealed class CassandraStore : IAsyncDisposable
     public async Task<Lectura> RegistrarAsync(NuevaLectura n, DateTimeOffset ts)
     {
         var dia = ToLocalDate(Modelo.DiaLima(ts));
-        await _session.ExecuteAsync(_insertLectura.Bind(n.EstacionId, dia, ts, n.Temperatura, n.Humedad));
-        await _session.ExecuteAsync(_contarLectura.Bind(dia, n.EstacionId));
+        // El INSERT y el contador son independientes: se envían en paralelo.
+        await Task.WhenAll(
+            _session.ExecuteAsync(_insertLectura.Bind(n.EstacionId, dia, ts, n.Temperatura, n.Humedad)),
+            _session.ExecuteAsync(_contarLectura.Bind(dia, n.EstacionId)));
         return new Lectura(n.EstacionId, ts, n.Temperatura, n.Humedad);
     }
 

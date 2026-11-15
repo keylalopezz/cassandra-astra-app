@@ -95,15 +95,20 @@ app.MapPost("/api/simular", async (int? rondas, int? intervalo, StoreHolder h) =
     var sw = Stopwatch.StartNew();
     var rnd = Random.Shared;
     var estaciones = await store.EstacionesAsync();
-    var escritas = new List<Lectura>();
-    for (var i = 0; i < n; i++)
+    // Las rondas se reparten hacia atrás en el tiempo (intervalo en minutos) para dibujar una curva.
+    var ahora = DateTimeOffset.UtcNow;
+    var pendientes = Enumerable.Range(0, n)
+        .SelectMany(i => estaciones.Select(e => (e, ts: ahora.AddMinutes(-(n - 1 - i) * minutos))))
+        .Select(x => (x.ts, lectura: Modelo.Simular(x.e, x.ts, rnd))).ToList();
+    // Cassandra escala con escrituras concurrentes: hasta 32 en vuelo a la vez.
+    using var limite = new SemaphoreSlim(32);
+    var escritas = await Task.WhenAll(pendientes.Select(async x =>
     {
-        // Las rondas se reparten hacia atrás en el tiempo (intervalo en minutos) para dibujar una curva.
-        var ts = DateTimeOffset.UtcNow.AddMinutes(-(n - 1 - i) * minutos);
-        foreach (var e in estaciones)
-            escritas.Add(await store.RegistrarAsync(Modelo.Simular(e, ts, rnd), ts));
-    }
-    return Results.Ok(new Respuesta<int>(escritas.Count, [CassandraStore.CqlInsert, CassandraStore.CqlContador],
+        await limite.WaitAsync();
+        try { return await store.RegistrarAsync(x.lectura, x.ts); }
+        finally { limite.Release(); }
+    }));
+    return Results.Ok(new Respuesta<int>(escritas.Length, [CassandraStore.CqlInsert, CassandraStore.CqlContador],
         Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
 });
 
