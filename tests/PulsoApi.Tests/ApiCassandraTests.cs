@@ -85,6 +85,18 @@ public class ApiCassandraTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(2 * Modelo.EstacionesIniciales.Count, json.GetProperty("data").GetInt32());
     }
 
+    [Fact]
+    public async Task Historial_reparte_las_lecturas_en_24_horas()
+    {
+        if (!HayCassandra) return;
+        var client = await ClienteListoAsync();
+        var r = await client.PostAsync("/api/simular?rondas=48&intervalo=30", null);
+        r.EnsureSuccessStatusCode();
+        var serie = await client.GetFromJsonAsync<JsonElement>("/api/estaciones/TAC-CANDARAVE/lecturas?horas=24", Json);
+        var horas = serie.GetProperty("data").EnumerateArray().Select(l => l.GetProperty("ts").GetDateTimeOffset()).ToList();
+        Assert.True((horas.Max() - horas.Min()).TotalHours >= 23, "El historial debe cubrir al menos 23 horas");
+    }
+
     private static async Task<long> LecturasHoyAsync(HttpClient client, string id)
     {
         var r = await client.GetFromJsonAsync<JsonElement>("/api/estaciones", Json);

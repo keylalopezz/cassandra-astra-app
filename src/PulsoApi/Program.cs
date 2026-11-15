@@ -87,18 +87,19 @@ app.MapPost("/api/lecturas", async (NuevaLectura nueva, StoreHolder h) =>
 });
 
 // Simulador: genera una lectura por estación (lo usa el panel y el workflow de ingesta).
-app.MapPost("/api/simular", async (int? rondas, StoreHolder h) =>
+app.MapPost("/api/simular", async (int? rondas, int? intervalo, StoreHolder h) =>
 {
     var store = h.Requerir();
-    var n = Math.Clamp(rondas ?? 1, 1, 20);
+    var n = Math.Clamp(rondas ?? 1, 1, 48);
+    var minutos = Math.Clamp(intervalo ?? 3, 1, 60);
     var sw = Stopwatch.StartNew();
     var rnd = Random.Shared;
     var estaciones = await store.EstacionesAsync();
     var escritas = new List<Lectura>();
     for (var i = 0; i < n; i++)
     {
-        // Las rondas se reparten en los últimos minutos para dibujar una curva.
-        var ts = DateTimeOffset.UtcNow.AddMinutes(-(n - 1 - i) * 3);
+        // Las rondas se reparten hacia atrás en el tiempo (intervalo en minutos) para dibujar una curva.
+        var ts = DateTimeOffset.UtcNow.AddMinutes(-(n - 1 - i) * minutos);
         foreach (var e in estaciones)
             escritas.Add(await store.RegistrarAsync(Modelo.Simular(e, ts, rnd), ts));
     }

@@ -91,6 +91,7 @@
         <input id="inHum" type="number" step="0.1" value="60" title="Humedad %">
         <button id="btnReg">Registrar</button>
         <button class="sec" id="btnSim">Simular 5 rondas</button>
+        <button class="sec" id="btnHist">Historial 24 h</button>
       </div>
       <div class="console" id="console"><span class="k">cqlsh&gt;</span> listo. Cada acción muestra la sentencia CQL ejecutada.</div>
     </div>
@@ -205,6 +206,15 @@ $('btnSim').onclick = async () => {
     const r = await api('/api/simular?rondas=5', { method: 'POST' });
     log(`<span class="k">cqlsh&gt;</span> ${r.cql[0]}`);
     log(`<span class="ms">✔ ${r.data} lecturas escritas (5 rondas × ${estaciones.length} estaciones) · ${r.ms} ms</span>`);
+    await cargarEstaciones(); await seleccionar(seleccionada || estaciones[0].estacion.estacionId);
+  } catch (e) { log(`<span class="err">✖ ${e.message}</span>`); }
+};
+
+$('btnHist').onclick = async () => {
+  try {
+    const r = await api('/api/simular?rondas=48&intervalo=30', { method: 'POST' });
+    log(`<span class="k">cqlsh&gt;</span> ${r.cql[0]}`);
+    log(`<span class="ms">✔ ${r.data} lecturas de las últimas 24 h (cada 30 min) · ${r.ms} ms</span>`);
     await cargarEstaciones(); await seleccionar(seleccionada || estaciones[0].estacion.estacionId);
   } catch (e) { log(`<span class="err">✖ ${e.message}</span>`); }
 };
