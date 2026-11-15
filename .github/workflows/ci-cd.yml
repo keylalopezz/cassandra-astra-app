@@ -81,7 +81,8 @@ jobs:
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:sha-${{ github.sha }}
             ${{ steps.vars.outputs.image }}
-      - run: echo "### Imagen publicada: \`${{ steps.vars.outputs.image }}\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Resumen
+        run: echo "### Imagen publicada ${{ steps.vars.outputs.image }}" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Despliegue en Render
