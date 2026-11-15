@@ -8,6 +8,12 @@ Aplicación de monitoreo de estaciones meteorológicas de Tacna construida sobre
 
 **App publicada:** https://pulso-tacna.onrender.com
 
+| Recurso | Enlace |
+|---|---|
+| Artículo de Keyla — Modelado orientado a consultas en Apache Cassandra | https://dev.to/keylalopezz/modelado-orientado-a-consultas-en-apache-cassandra-series-de-tiempo-con-particiones-ttl-y-40hj |
+| Artículo de Adrian — Cassandra como código (Terraform + GitHub Actions) | https://dev.to/adriansalasepis |
+| Automatización (GitHub Actions) | https://github.com/keylalopezz/cassandra-astra-app/actions |
+
 > Actividad grupal — Base de Datos II, Escuela Profesional de Ingeniería de Sistemas, Universidad Privada de Tacna.
 > Autores: **Adrian Fabricio Salas Acuña** y **Keyla Noelia Lopez Ojeda**.
 
