@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/tfplan
+secure-connect-*.zip

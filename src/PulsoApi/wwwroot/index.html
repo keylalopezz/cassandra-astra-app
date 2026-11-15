@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulso Tacna · Cassandra en Astra DB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#1e40af; --brand2:#7c3aed; --ok:#059669; --warn:#d97706; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+    header { display:flex; align-items:center; gap:14px; padding:14px 28px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+    .logo { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--brand),var(--brand2)); display:grid; place-items:center; color:#fff; font-weight:800; }
+    header h1 { font-size:18px; margin:0; }
+    .pill { font-size:12px; padding:4px 10px; border-radius:999px; background:#eef2ff; color:var(--brand); font-weight:600; white-space:nowrap; }
+    .pill.ok { background:#ecfdf5; color:var(--ok); }
+    .spacer { flex:1; }
+    main { max-width:1200px; margin:0 auto; padding:24px 28px 60px; }
+    .eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); font-weight:700; }
+    .hero h2 { font-size:38px; line-height:1.1; margin:8px 0 10px; letter-spacing:-.02em; }
+    .hero h2 span { background:linear-gradient(90deg,var(--brand),var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .hero p { color:var(--muted); max-width:780px; margin:0 0 22px; line-height:1.55; }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+    .kpi .lbl { font-size:12px; color:var(--muted); font-weight:600; }
+    .kpi .val { font-size:28px; font-weight:800; margin-top:4px; }
+    .kpi .sub { font-size:12px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:1.35fr 1fr; gap:16px; }
+    .estaciones { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px; }
+    .est { cursor:pointer; transition:.15s; }
+    .est:hover { border-color:#c7d2fe; }
+    .est.sel { border-color:var(--brand); box-shadow:0 0 0 3px #e0e7ff; }
+    .est .id { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+    .est .nom { font-weight:700; font-size:14px; margin:2px 0 8px; }
+    .est .t { font-size:26px; font-weight:800; }
+    .est .h { font-size:12px; color:var(--muted); }
+    h3 { margin:0 0 12px; font-size:15px; }
+    .acciones { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    button { font:inherit; font-weight:600; border:0; border-radius:10px; padding:10px 14px; cursor:pointer; background:var(--brand); color:#fff; }
+    button.sec { background:#eef2ff; color:var(--brand); }
+    input, select { font:inherit; padding:9px 10px; border:1px solid var(--line); border-radius:10px; width:110px; }
+    select { width:auto; }
+    .console { background:#0b1020; color:#cbd5e1; border-radius:12px; padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:12px; height:220px; overflow:auto; margin-top:12px; }
+    .console .k { color:#93c5fd; } .console .ms { color:#86efac; } .console .err { color:#fca5a5; }
+    pre.cql { background:#0b1020; color:#e2e8f0; border-radius:12px; padding:12px 14px; font-size:12px; overflow:auto; margin:0; font-family:'JetBrains Mono',monospace; }
+    .modelo p { color:var(--muted); font-size:13px; line-height:1.5; margin:8px 0 0; }
+    footer { text-align:center; color:var(--muted); font-size:12px; margin-top:28px; }
+    @media (max-width: 900px) { .kpis{grid-template-columns:repeat(2,1fr)} .estaciones{grid-template-columns:repeat(2,1fr)} .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">P</div>
+  <h1>Pulso Tacna</h1>
+  <span class="pill ok" id="estado">● conectando…</span>
+  <span class="pill" id="motor">Apache Cassandra</span>
+  <span class="pill" id="version">v —</span>
+  <div class="spacer"></div>
+  <span class="pill" id="dc">datacenter —</span>
+</header>
+<main>
+  <section class="hero">
+    <div class="eyebrow">Base de Datos II · UPT · NoSQL orientada a columnas</div>
+    <h2>Series de tiempo con <span>Apache Cassandra</span> en Astra DB</h2>
+    <p>Cinco estaciones meteorológicas de Tacna envían lecturas de temperatura y humedad. Cada lectura se guarda en
+      una partición <b>(estación, día)</b> ordenada por hora, con <b>TTL de 30 días</b> y un <b>contador</b> por día.
+      Cada <code>git push</code> se prueba contra Cassandra real y se despliega solo con GitHub Actions.</p>
+  </section>
+
+  <section class="kpis">
+    <div class="card kpi"><div class="lbl">Estaciones</div><div class="val" id="kEst">—</div><div class="sub">tabla estaciones</div></div>
+    <div class="card kpi"><div class="lbl">Lecturas hoy</div><div class="val" id="kHoy">—</div><div class="sub">contador conteo_lecturas_dia</div></div>
+    <div class="card kpi"><div class="lbl">Última lectura</div><div class="val" id="kUlt">—</div><div class="sub" id="kUltSub">—</div></div>
+    <div class="card kpi"><div class="lbl">Latencia a la BD</div><div class="val" id="kLat">—</div><div class="sub">consulta a system.local</div></div>
+  </section>
+
+  <section class="estaciones" id="estaciones"></section>
+
+  <section class="grid">
+    <div class="card">
+      <h3 id="tituloSerie">Últimas 24 horas</h3>
+      <canvas id="chart" height="150"></canvas>
+    </div>
+    <div class="card">
+      <h3>Registrar datos</h3>
+      <div class="acciones">
+        <select id="selEst"></select>
+        <input id="inTemp" type="number" step="0.1" value="24.5" title="Temperatura °C">
+        <input id="inHum" type="number" step="0.1" value="60" title="Humedad %">
+        <button id="btnReg">Registrar</button>
+        <button class="sec" id="btnSim">Simular 5 rondas</button>
+      </div>
+      <div class="console" id="console"><span class="k">cqlsh&gt;</span> listo. Cada acción muestra la sentencia CQL ejecutada.</div>
+    </div>
+  </section>
+
+  <section class="grid" style="margin-top:16px">
+    <div class="card modelo">
+      <h3>Modelo de datos (diseñado a partir de las consultas)</h3>
+<pre class="cql">CREATE TABLE lecturas_por_estacion_dia (
+  estacion_id text,
+  dia         date,
+  ts          timestamp,
+  temperatura double,
+  humedad     double,
+  PRIMARY KEY ((estacion_id, dia), ts)
+) WITH CLUSTERING ORDER BY (ts DESC);</pre>
+      <p><b>Clave de partición</b> (estacion_id, dia): todas las lecturas de una estación en un día viven juntas en el mismo nodo.
+        <b>Columna de agrupamiento</b> ts DESC: la lectura más reciente es la primera, así que "la última lectura" es un <code>LIMIT 1</code>.</p>
+    </div>
+    <div class="card modelo">
+      <h3>Contador por día</h3>
+<pre class="cql">CREATE TABLE conteo_lecturas_dia (
+  dia         date,
+  estacion_id text,
+  total       counter,
+  PRIMARY KEY ((dia), estacion_id)
+);
+
+UPDATE conteo_lecturas_dia SET total = total + 1
+ WHERE dia = ? AND estacion_id = ?;</pre>
+      <p>Cassandra no tiene <code>COUNT(*)</code> barato: se mantiene un <b>counter</b> que se incrementa en cada escritura.</p>
+    </div>
+  </section>
+  <footer>Adrian Salas · Keyla Lopez — Base de Datos II, Escuela Profesional de Ingeniería de Sistemas, UPT · <a href="https://github.com/keylalopezz/cassandra-astra-app">repositorio</a></footer>
+</main>
+
+<script>
+let estaciones = [], seleccionada = null, chart = null;
+const $ = id => document.getElementById(id);
+const log = (html) => { const c = $('console'); c.innerHTML += '<br>' + html; c.scrollTop = c.scrollHeight; };
+const fmtHora = iso => new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
+
+async function api(url, opt) {
+  const r = await fetch(url, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || j.detail || r.statusText);
+  return j;
+}
+
+async function cargarInfo() {
+  try {
+    const i = await api('/api/info');
+    $('estado').textContent = '● en línea · ' + i.latenciaMs + ' ms';
+    $('motor').textContent = i.motor + ' ' + i.cassandra;
+    $('version').textContent = 'v ' + i.version.substring(0, 7);
+    $('dc').textContent = 'datacenter ' + i.datacenter;
+    $('kLat').textContent = i.latenciaMs + ' ms';
+  } catch (e) { $('estado').textContent = '● conectando…'; setTimeout(cargarInfo, 3000); }
+}
+
+async function cargarEstaciones() {
+  const r = await api('/api/estaciones');
+  estaciones = r.data;
+  const total = estaciones.reduce((a, e) => a + e.lecturasHoy, 0);
+  $('kEst').textContent = estaciones.length;
+  $('kHoy').textContent = total;
+  const ult = estaciones.map(e => e.ultima).filter(Boolean).sort((a, b) => b.ts.localeCompare(a.ts))[0];
+  $('kUlt').textContent = ult ? ult.temperatura.toFixed(1) + ' °C' : '—';
+  $('kUltSub').textContent = ult ? ult.estacionId + ' · ' + fmtHora(ult.ts) : 'sin datos';
+  $('estaciones').innerHTML = estaciones.map(e => `
+    <div class="card est ${e.estacion.estacionId === seleccionada ? 'sel' : ''}" data-id="${e.estacion.estacionId}">
+      <div class="id">${e.estacion.estacionId}</div>
+      <div class="nom">${e.estacion.nombre}</div>
+      <div class="t">${e.ultima ? e.ultima.temperatura.toFixed(1) + ' °C' : '—'}</div>
+      <div class="h">${e.ultima ? 'Humedad ' + e.ultima.humedad.toFixed(0) + '% · ' + fmtHora(e.ultima.ts) : 'sin lecturas'} · ${e.estacion.altitud} m</div>
+    </div>`).join('');
+  document.querySelectorAll('.est').forEach(d => d.onclick = () => seleccionar(d.dataset.id));
+  $('selEst').innerHTML = estaciones.map(e => `<option value="${e.estacion.estacionId}">${e.estacion.estacionId}</option>`).join('');
+  if (seleccionada) $('selEst').value = seleccionada;
+  return r;
+}
+
+async function seleccionar(id) {
+  seleccionada = id;
+  document.querySelectorAll('.est').forEach(d => d.classList.toggle('sel', d.dataset.id === id));
+  $('selEst').value = id;
+  const r = await api('/api/estaciones/' + id + '/lecturas?horas=24');
+  log(`<span class="k">cqlsh&gt;</span> ${r.cql[0]} <span class="ms">— ${r.data.length} filas · ${r.ms} ms</span>`);
+  const e = estaciones.find(x => x.estacion.estacionId === id);
+  $('tituloSerie').textContent = 'Últimas 24 horas · ' + e.estacion.nombre;
+  const labels = r.data.map(l => fmtHora(l.ts));
+  const data = { labels, datasets: [
+    { label: 'Temperatura (°C)', data: r.data.map(l => l.temperatura), borderColor: '#1e40af', backgroundColor: '#1e40af22', tension: .3, fill: true, yAxisID: 'y' },
+    { label: 'Humedad (%)', data: r.data.map(l => l.humedad), borderColor: '#7c3aed', tension: .3, yAxisID: 'y1' } ] };
+  if (chart) { chart.data = data; chart.update(); return; }
+  chart = new Chart($('chart'), { type: 'line', data, options: { animation: false, interaction: { mode: 'index', intersect: false },
+    scales: { y: { position: 'left', title: { display: true, text: '°C' } }, y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '%' } } } } });
+}
+
+$('btnReg').onclick = async () => {
+  try {
+    const body = { estacionId: $('selEst').value, temperatura: parseFloat($('inTemp').value), humedad: parseFloat($('inHum').value) };
+    const r = await api('/api/lecturas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    r.cql.forEach(q => log(`<span class="k">cqlsh&gt;</span> ${q}`));
+    log(`<span class="ms">✔ 1 lectura en ${r.data.estacionId} · ${r.ms} ms</span>`);
+    await cargarEstaciones(); await seleccionar(body.estacionId);
+  } catch (e) { log(`<span class="err">✖ ${e.message}</span>`); }
+};
+
+$('btnSim').onclick = async () => {
+  try {
+    const r = await api('/api/simular?rondas=5', { method: 'POST' });
+    log(`<span class="k">cqlsh&gt;</span> ${r.cql[0]}`);
+    log(`<span class="ms">✔ ${r.data} lecturas escritas (5 rondas × ${estaciones.length} estaciones) · ${r.ms} ms</span>`);
+    await cargarEstaciones(); await seleccionar(seleccionada || estaciones[0].estacion.estacionId);
+  } catch (e) { log(`<span class="err">✖ ${e.message}</span>`); }
+};
+
+(async () => {
+  await cargarInfo();
+  for (let i = 0; i < 20; i++) { try { await cargarEstaciones(); break; } catch { await new Promise(r => setTimeout(r, 3000)); } }
+  if (estaciones.length) await seleccionar(estaciones[0].estacion.estacionId);
+  setInterval(cargarInfo, 15000);
+})();
+</script>
+</body>
+</html>
